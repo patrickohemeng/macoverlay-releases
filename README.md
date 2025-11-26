@@ -2,14 +2,23 @@
 
 A powerful macOS menu bar app that displays customizable overlay notifications triggered by webhooks. Perfect for smart home integrations, monitoring systems, and custom alerts.
 
+> **Note:** This project is actively being developed. If you encounter any issues or have feature requests, please [open an issue](https://github.com/patrickohemeng/macoverlay-releases/issues) and I'll address them as soon as possible.
+
 ## Features
 
 - **Webhook-Triggered Notifications** - Send POST requests to display beautiful overlay notifications
 - **Live Video Previews** - Stream video content directly in notifications (HTTP/HLS)
+- **Image Support** - Display images in notifications
+- **Progress Bars** - Show progress indicators in notifications
+- **Action Buttons** - Add clickable buttons that open URLs or trigger actions
+- **Multi-Monitor Support** - Choose which display to show notifications on, or show on all displays
 - **Fully Customizable** - Control every aspect of notification appearance and behavior
 - **Home Assistant Integration** - Seamlessly integrate with your smart home
-- **Sound Effects** - Multiple built-in notification sounds
+- **Multiple Sound Effects** - Built-in notification sounds
 - **Global Hotkeys** - Quick access via customizable keyboard shortcuts
+- **Video Shortcuts** - Trigger specific video streams with dedicated hotkeys
+- **Launch on Startup** - Optionally start MacOverlay when you log in
+- **Notification History** - Keep track of past notifications
 - **Auto-Updates** - Stay current with Sparkle-powered automatic updates
 
 ## Installation
@@ -48,8 +57,10 @@ Content-Type: application/json
 | `duration` | number | 5 | Display duration in seconds |
 | `sound` | string | - | Sound effect: `glass`, `ping`, `tink`, `basso`, `purr` |
 | `position` | string | "top-right" | Screen position (see below) |
-| `opacity` | number | 1.0 | Window opacity (0.0 - 1.0) |
+| `imageUrl` | string | - | HTTP URL for an image to display |
 | `videoUrl` | string | - | HTTP/HLS URL for live video stream |
+| `progress` | number | - | Progress bar value (0.0 - 1.0) |
+| `actions` | array | - | Action buttons (see below) |
 
 ### Position Options
 - `top-right` (default)
@@ -58,37 +69,69 @@ Content-Type: application/json
 - `bottom-left`
 - `center`
 
+### Action Buttons
+Add clickable buttons to notifications:
+```json
+{
+  "title": "Download Complete",
+  "message": "Your file is ready",
+  "actions": [
+    {"title": "Open File", "url": "file:///path/to/file"},
+    {"title": "Open Folder", "url": "file:///path/to/folder"}
+  ]
+}
+```
+
+### Progress Bar
+Show a progress indicator:
+```json
+{
+  "title": "Uploading",
+  "message": "backup.zip",
+  "progress": 0.75
+}
+```
+
 ## Customization Settings
 
 Access settings via the menu bar icon, Dock right-click menu, or your configured hotkey.
 
+### Display
+- **Target Display** - Choose which monitor to show notifications on
+- **Show on All Displays** - Display notifications on every connected monitor
+- **Screen Position** - Where notifications appear on screen
+
 ### Appearance
-- **Background Color** - Notification background color
-- **Text Color** - Title and message text color
 - **Accent Color** - Highlight and border color
 - **Corner Radius** - Rounded corner size
-- **Opacity** - Window transparency level
+- **Opacity** - Window transparency level (0.0 - 1.0)
+- **Shadow** - Enable/disable window shadow
+- **Title Position** - Show title at top or bottom of notification
+
+### Animation
+- **Animation Style** - Choose from: Slide, Fade, Scale, or None
+- **Animation Duration** - How fast animations play
 
 ### Behavior
 - **Default Duration** - How long notifications display
-- **Animation Style** - Slide, fade, or bounce animations
-- **Queue Behavior** - Stack, replace, or queue multiple notifications
-
-### Position & Size
-- **Screen Position** - Where notifications appear
-- **Width** - Notification window width
-- **Padding** - Internal spacing
+- **Click to Dismiss** - Dismiss notification by clicking on it
+- **Pause on Hover** - Pause auto-dismiss timer when mouse hovers over notification
+- **Notification History** - Keep track of past notifications
+- **Max History Items** - How many notifications to remember
 
 ### Sound
-- **Default Sound** - Sound effect for all notifications
-- **Volume** - Sound effect volume level
+- **Sound Enabled** - Play sounds for notifications
+- **Default Sound** - Sound effect for all notifications (glass, ping, tink, basso, purr)
 
 ### Network
 - **Port** - Webhook listener port (default: 5053)
 
+### Startup
+- **Launch on Login** - Automatically start MacOverlay when you log in
+
 ### Hotkeys
-- **Open Settings** - Global keyboard shortcut to open settings
-- **Video Shortcuts** - Trigger specific video streams with hotkeys
+- **Settings Hotkey** - Global keyboard shortcut to open settings (default: Cmd+Option+O)
+- **Video Shortcuts** - Create custom hotkeys to trigger specific video streams instantly
 
 ## Use Cases
 
@@ -173,7 +216,25 @@ automation:
           duration: 20
 ```
 
-### 5. Temperature/Climate Alerts
+### 5. Download/Upload Progress
+Show progress for long-running tasks:
+
+```yaml
+automation:
+  - alias: "Backup Progress"
+    trigger:
+      - platform: state
+        entity_id: sensor.backup_progress
+    action:
+      - service: rest_command.mac_notification
+        data:
+          title: "Backup in Progress"
+          message: "{{ states('sensor.backup_status') }}"
+          progress: "{{ states('sensor.backup_progress') | float / 100 }}"
+          duration: 3
+```
+
+### 6. Temperature/Climate Alerts
 Get notified about environmental changes:
 
 ```yaml
@@ -192,7 +253,7 @@ automation:
           sound: "basso"
 ```
 
-### 6. Calendar Reminders
+### 7. Calendar Reminders
 Custom reminders for upcoming events:
 
 ```yaml
@@ -213,6 +274,24 @@ automation:
           duration: 10
 ```
 
+### 8. Actionable Notifications
+Include buttons users can click:
+
+```yaml
+automation:
+  - alias: "Washer Done"
+    trigger:
+      - platform: state
+        entity_id: sensor.washer_status
+        to: "complete"
+    action:
+      - service: rest_command.mac_notification_actions
+        data:
+          title: "Laundry Complete"
+          message: "The washing machine has finished"
+          sound: "glass"
+```
+
 ## Home Assistant Setup
 
 ### 1. Add REST Command
@@ -228,14 +307,15 @@ rest_command:
     payload: >
       {
         "title": "{{ title }}",
-        "message": "{{ message }}",
-        {% if subtitle is defined %}"subtitle": "{{ subtitle }}",{% endif %}
-        {% if color is defined %}"color": "{{ color }}",{% endif %}
-        {% if duration is defined %}"duration": {{ duration }},{% endif %}
-        {% if sound is defined %}"sound": "{{ sound }}",{% endif %}
-        {% if position is defined %}"position": "{{ position }}",{% endif %}
-        {% if videoUrl is defined %}"videoUrl": "{{ videoUrl }}",{% endif %}
-        {% if opacity is defined %}"opacity": {{ opacity }}{% endif %}
+        "message": "{{ message }}"
+        {% if subtitle is defined %}, "subtitle": "{{ subtitle }}"{% endif %}
+        {% if color is defined %}, "color": "{{ color }}"{% endif %}
+        {% if duration is defined %}, "duration": {{ duration }}{% endif %}
+        {% if sound is defined %}, "sound": "{{ sound }}"{% endif %}
+        {% if position is defined %}, "position": "{{ position }}"{% endif %}
+        {% if imageUrl is defined %}, "imageUrl": "{{ imageUrl }}"{% endif %}
+        {% if videoUrl is defined %}, "videoUrl": "{{ videoUrl }}"{% endif %}
+        {% if progress is defined %}, "progress": {{ progress }}{% endif %}
       }
 ```
 
@@ -282,6 +362,20 @@ videoUrl: "https://unifi:7443/proxy/protect/api/cameras/CAMERA_ID/snapshot"
 videoUrl: "http://go2rtc:1984/api/stream.mp4?src=doorbell"
 ```
 
+## Multi-Monitor Support
+
+MacOverlay can display notifications on any connected monitor:
+
+1. Open **Settings**
+2. Go to the **Display** section
+3. Choose your target display from the dropdown
+4. Or enable **"Show on All Displays"** to show notifications on every monitor
+
+This is especially useful for:
+- Multi-monitor setups where you want alerts on a specific screen
+- Ultrawide monitors where you want notifications in a particular location
+- Showing security camera feeds on a dedicated monitor
+
 ## Accessing the App
 
 ### Menu Bar
@@ -300,7 +394,7 @@ Right-click the MacOverlay icon in the Dock:
 MacOverlay menu bar > Help > Check for Updates
 
 ### Global Hotkey
-Default: `Cmd + Shift + O` (customizable in Settings)
+Default: `Cmd + Option + O` (customizable in Settings)
 
 ## System Requirements
 
@@ -330,10 +424,17 @@ MacOverlay runs entirely locally on your Mac:
 ### Menu bar icon not visible?
 If your menu bar is full, use the Dock menu or Help menu instead. Right-click the MacOverlay icon in the Dock.
 
+### Notifications on wrong monitor?
+Open Settings and select the correct display from the Display dropdown.
+
+## Contributing
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/patrickohemeng/macoverlay-releases/issues) - I actively monitor and respond to feedback.
+
 ## License
 
 Copyright 2024 MacOverlay. All rights reserved.
 
 ---
 
-**Note:** This repository contains release binaries only. For feature requests or bug reports, please use the Issues tab.
+**Note:** This repository contains release binaries only.
