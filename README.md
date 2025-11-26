@@ -19,7 +19,6 @@ A powerful macOS menu bar app that displays customizable overlay notifications t
 - **Video Shortcuts** - Trigger specific video streams with dedicated hotkeys
 - **Launch on Startup** - Optionally start MacOverlay when you log in
 - **Notification History** - Keep track of past notifications
-- **Auto-Updates** - Stay current with Sparkle-powered automatic updates
 
 ## Installation
 
@@ -382,19 +381,22 @@ This is especially useful for:
 Click the bell icon in the menu bar for quick access to:
 - Settings
 - Send Test Notification
-- Check for Updates
 
 ### Dock Menu
 Right-click the MacOverlay icon in the Dock:
 - Settings
 - Send Test Notification
-- Check for Updates
-
-### Help Menu
-MacOverlay menu bar > Help > Check for Updates
 
 ### Global Hotkey
 Default: `Cmd + Option + O` (customizable in Settings)
+
+## Updating
+
+To update MacOverlay to the latest version:
+1. Download the latest `MacOverlay.dmg` from [Releases](https://github.com/patrickohemeng/macoverlay-releases/releases)
+2. Quit MacOverlay if it's running
+3. Open the DMG and drag the new version to Applications (replace the old one)
+4. Launch MacOverlay
 
 ## System Requirements
 
